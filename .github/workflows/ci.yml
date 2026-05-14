@@ -51,17 +51,17 @@ jobs:
         # The program keypair is stored as a GitHub Secret (base58 array JSON).
         # CI always uses the same keypair so declare_id! and PROGRAM_ID always match.
         # To set: Settings → Secrets → ANCHOR_PROGRAM_KEYPAIR → paste contents of
-        #         target/deploy/blockbite_vesting-keypair.json
+        #         target/deploy/blockbite-keypair.json
         run: |
           mkdir -p ~/.config/solana target/deploy
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
           if [ -n "${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}" ]; then
-            echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite_vesting-keypair.json
+            echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
             echo "Using program keypair from secret"
           else
             # Fallback: generate ephemeral key — anchor keys sync will update declare_id!
             solana-keygen new --no-bip39-passphrase --silent \
-              --outfile target/deploy/blockbite_vesting-keypair.json
+              --outfile target/deploy/blockbite-keypair.json
             echo "No ANCHOR_PROGRAM_KEYPAIR secret found — using ephemeral key"
           fi
 

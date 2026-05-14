@@ -14,7 +14,7 @@ pub use state::*;
 declare_id!("BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc");
 
 #[program]
-pub mod blockblast {
+pub mod blockbite {
     use super::*;
 
     pub fn create_stream(

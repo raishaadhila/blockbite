@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-blockblast = "BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc"
+blockbite = "BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc"
 
 [provider]
 cluster = "localnet"

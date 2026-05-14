@@ -14,7 +14,7 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 
-describe("blockblast", () => {
+describe("blockbite", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 

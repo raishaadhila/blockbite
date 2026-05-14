@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "programs/blockbite-vesting"
+    "programs/blockbite"
 ]
 resolver = "2"
 
