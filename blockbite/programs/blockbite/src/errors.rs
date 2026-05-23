@@ -22,4 +22,21 @@ pub enum ErrorCode {
     FullyVested,
     #[msg("Milestone has already been reached")]
     MilestoneAlreadyReached,
+    // ── Campaign & Milestone ─────────────────────────────────────────────────
+    #[msg("Campaign not found")]
+    CampaignNotFound,
+    #[msg("Milestone not found")]
+    MilestoneNotFound,
+    #[msg("Milestone has already been verified")]
+    MilestoneAlreadyVerified,
+    #[msg("Proof is invalid or does not match expected hash")]
+    InvalidProof,
+    #[msg("Signer is not an authorized verifier")]
+    UnauthorizedVerifier,
+    #[msg("Insufficient signers for multisig verification")]
+    InsufficientSigners,
+    #[msg("Campaign budget is insufficient for this milestone")]
+    InsufficientBudget,
+    #[msg("Milestone has not been verified yet")]
+    MilestoneNotVerified,
 }
