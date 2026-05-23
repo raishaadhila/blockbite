@@ -15,7 +15,7 @@ import {
 } from "@solana/web3.js";
 
 describe("blockbite", () => {
-  const provider = anchor.AnchorProvider.local();
+const provider = anchor.AnchorProvider.local();
   anchor.setProvider(provider);
 
   const program = anchor.workspace.blockbite;
