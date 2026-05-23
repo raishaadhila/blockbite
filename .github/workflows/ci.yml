@@ -1,4 +1,4 @@
-name: Blockbite CI
+name: ci
 
 on:
   push:

@@ -119,7 +119,7 @@ async function createStream(
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("blockbite", () => {
-const provider  = anchor.AnchorProvider.env();
+  const provider  = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
   const program   = anchor.workspace.blockbite;
