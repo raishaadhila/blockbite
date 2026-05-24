@@ -2,55 +2,101 @@ name: Blockbite CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
   smart-contract:
-    name: Anchor program
+    name: Build & Test Anchor Program
     runs-on: ubuntu-latest
 
     steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ── 2. Rust toolchain ────────────────────────────────────────────────────
+      # Anchor 0.32.1 requires a stable Rust toolchain.
+      # dtolnay/rust-toolchain accepts a plain version string.
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.85.0"
+          components: rustfmt, clippy
 
+      # ── 3. Cargo cache ───────────────────────────────────────────────────────
       - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-${{ runner.os }}-rust-1.91.0-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-rust-1.91.0-
+            blockbite/target
+          key: cargo-${{ runner.os }}-1.85.0-${{ hashFiles('blockbite/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-1.85.0-
 
+      # ── 4. System dependencies ───────────────────────────────────────────────
       - name: Install native build dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
 
+      # ── 5. Node.js ───────────────────────────────────────────────────────────
+      # Setup Node BEFORE Solana/Anchor so yarn cache key is resolved correctly.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: blockbite/yarn.lock
+
+      # ── 6. Solana CLI ────────────────────────────────────────────────────────
+      # Pin to a stable Anza release compatible with Anchor 0.32.1 (Solana 2.x).
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.21/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      - name: Install Anchor CLI 0.32.1 (pre-built)
+      # ── 7. Anchor CLI ────────────────────────────────────────────────────────
+      - name: Install Anchor CLI 0.32.1
         run: |
-          curl -L https://github.com/coral-xyz/anchor/releases/download/v0.32.1/anchor-cli-x86_64-unknown-linux-gnu.tar.gz -o anchor.tar.gz
+          curl -L \
+            https://github.com/coral-xyz/anchor/releases/download/v0.32.1/anchor-cli-x86_64-unknown-linux-gnu.tar.gz \
+            -o anchor.tar.gz
           tar -xzf anchor.tar.gz
           chmod +x anchor
-          mv anchor $HOME/.cargo/bin/anchor
+          mkdir -p "$HOME/.cargo/bin"
+          mv anchor "$HOME/.cargo/bin/anchor"
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          anchor --version
 
-      - name: Restore program keypair
-        working-directory: ./blockbite
+      # ── 8. Verify tool versions ──────────────────────────────────────────────
+      - name: Verify tool versions
         run: |
-          mkdir -p ~/.config/solana target/deploy
+          solana --version
+          anchor --version
+          rustc --version
+          node --version
+          yarn --version
+
+      # ── 9. Solana keypair & config ───────────────────────────────────────────
+      # Create a default wallet and point Solana CLI at localnet.
+      - name: Configure Solana CLI
+        run: |
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
+          solana config set \
+            --url http://127.0.0.1:8899 \
+            --keypair ~/.config/solana/id.json
+
+      # ── 10. Program keypair ──────────────────────────────────────────────────
+      # Use the repo's declared program ID so `anchor keys sync` is a no-op.
+      # If a deploy keypair secret is provided it is used; otherwise we derive
+      # a fresh one whose address we sync into the source before building.
+      - name: Restore program keypair
+        working-directory: blockbite
+        run: |
+          mkdir -p target/deploy
           if [ -n "${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}" ]; then
             echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
             echo "Using program keypair from secret"
@@ -60,39 +106,79 @@ jobs:
             echo "No ANCHOR_PROGRAM_KEYPAIR secret — using ephemeral key"
           fi
 
+      # ── 11. Sync program ID ──────────────────────────────────────────────────
+      # When using an ephemeral key the derived address will differ from the
+      # hard-coded ID; `anchor keys sync` patches lib.rs + Anchor.toml so the
+      # build succeeds without any manual editing.
       - name: Sync program ID
-        working-directory: ./blockbite
+        working-directory: blockbite
         run: anchor keys sync
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: ./blockbite/yarn.lock
-
+      # ── 12. Node dependencies ────────────────────────────────────────────────
       - name: Install Node dependencies
-        working-directory: ./blockbite
+        working-directory: blockbite
         run: yarn install --frozen-lockfile
 
-      - name: Build program
-        working-directory: ./blockbite
+      # ── 13. Build program ────────────────────────────────────────────────────
+      - name: Build Anchor program
+        working-directory: blockbite
         run: anchor build
 
+      # ── 14. Rust unit tests ──────────────────────────────────────────────────
       - name: Run Rust unit tests
-        working-directory: ./blockbite
+        working-directory: blockbite
         run: cargo test --package blockbite
 
+      # ── 15. Integration tests ────────────────────────────────────────────────
+      # Start a local validator, airdrop SOL, deploy, then run the TS test suite.
       - name: Run integration tests
-        working-directory: ./blockbite
+        working-directory: blockbite
         env:
           ANCHOR_WALLET: /home/runner/.config/solana/id.json
           ANCHOR_PROVIDER_URL: http://127.0.0.1:8899
         run: |
+          # ── clean up any stale ledger ──
           rm -rf .anchor/test-ledger
           mkdir -p .anchor
-          solana-test-validator --reset --quiet --ledger .anchor/test-ledger --rpc-port 8899 &
-          sleep 10
-          solana airdrop 100 $(solana-keygen pubkey /home/runner/.config/solana/id.json) --url http://127.0.0.1:8899 || true
-          anchor deploy --provider.cluster localnet --provider.wallet /home/runner/.config/solana/id.json
-          yarn run ts-mocha -p ./tsconfig.json -t 1000000 "tests/**/*.ts"
+
+          # ── start validator in background ──
+          solana-test-validator \
+            --reset \
+            --quiet \
+            --ledger .anchor/test-ledger \
+            --rpc-port 8899 &
+          VALIDATOR_PID=$!
+
+          # ── wait until the RPC is ready (up to 60 s) ──
+          echo "Waiting for validator to become ready..."
+          for i in $(seq 1 60); do
+            if solana cluster-version --url http://127.0.0.1:8899 &>/dev/null; then
+              echo "Validator ready after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "ERROR: validator did not start within 60 s"
+              kill $VALIDATOR_PID 2>/dev/null || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # ── fund the payer wallet ──
+          solana airdrop 100 \
+            "$(solana-keygen pubkey ~/.config/solana/id.json)" \
+            --url http://127.0.0.1:8899 || true
+
+          # ── deploy the program ──
+          anchor deploy \
+            --provider.cluster localnet \
+            --provider.wallet ~/.config/solana/id.json
+
+          # ── run TypeScript tests ──
+          yarn run ts-mocha \
+            -p ./tsconfig.json \
+            -t 1000000 \
+            "tests/**/*.ts"
+
+          # ── clean shutdown ──
+          kill $VALIDATOR_PID 2>/dev/null || true
