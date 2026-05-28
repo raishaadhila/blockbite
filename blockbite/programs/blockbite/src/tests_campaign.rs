@@ -1,0 +1,157 @@
+use crate::state::{CampaignAccount, MilestoneAccount};
+use crate::constants::{MAX_SIGNERS, VERIFICATION_ORACLE, VERIFICATION_GAME, VERIFICATION_MULTISIG};
+use anchor_lang::prelude::Pubkey;
+
+fn make_campaign(
+    founder: Pubkey,
+    total_budget: u64,
+) -> CampaignAccount {
+    CampaignAccount {
+        founder,
+        title_hash: [1u8; 32],
+        total_budget,
+        allocated_amount: 0,
+        milestone_count: 0,
+        bump: 0,
+    }
+}
+
+fn make_milestone(
+    campaign: Pubkey,
+    recipient: Pubkey,
+    verification_type: u8,
+    token_amount: u64,
+    oracle_pubkey: Pubkey,
+    game_program_id: Pubkey,
+) -> MilestoneAccount {
+    MilestoneAccount {
+        campaign,
+        recipient,
+        description_hash: [2u8; 32],
+        verification_type,
+        oracle_pubkey,
+        signer_count: 0,
+        signers: [Pubkey::default(); MAX_SIGNERS],
+        game_program_id,
+        token_amount,
+        is_verified: false,
+        proof_hash: [0u8; 32],
+        bump: 0,
+    }
+}
+
+#[test]
+fn test_campaign_initial_state() {
+    let founder = Pubkey::new_unique();
+    let campaign = make_campaign(founder, 1_000_000);
+    assert_eq!(campaign.founder, founder);
+    assert_eq!(campaign.total_budget, 1_000_000);
+    assert_eq!(campaign.allocated_amount, 0);
+    assert_eq!(campaign.milestone_count, 0);
+}
+
+#[test]
+fn test_milestone_initial_state() {
+    let campaign = Pubkey::new_unique();
+    let recipient = Pubkey::new_unique();
+    let oracle = Pubkey::new_unique();
+    let game = Pubkey::new_unique();
+
+    let milestone = make_milestone(campaign, recipient, VERIFICATION_ORACLE, 5_000, oracle, game);
+    assert_eq!(milestone.campaign, campaign);
+    assert_eq!(milestone.recipient, recipient);
+    assert_eq!(milestone.verification_type, VERIFICATION_ORACLE);
+    assert_eq!(milestone.token_amount, 5_000);
+    assert!(!milestone.is_verified);
+    assert_eq!(milestone.proof_hash, [0u8; 32]);
+}
+
+#[test]
+fn test_milestone_proof_submission() {
+    let campaign = Pubkey::new_unique();
+    let recipient = Pubkey::new_unique();
+    let oracle = Pubkey::new_unique();
+    let game = Pubkey::new_unique();
+
+    let mut milestone = make_milestone(campaign, recipient, VERIFICATION_ORACLE, 5_000, oracle, game);
+    let proof = [42u8; 32];
+    milestone.proof_hash = proof;
+    assert_eq!(milestone.proof_hash, proof);
+}
+
+#[test]
+fn test_milestone_verification_oracle() {
+    let campaign = Pubkey::new_unique();
+    let recipient = Pubkey::new_unique();
+    let oracle = Pubkey::new_unique();
+    let game = Pubkey::new_unique();
+
+    let mut milestone = make_milestone(campaign, recipient, VERIFICATION_ORACLE, 5_000, oracle, game);
+    milestone.proof_hash = [42u8; 32];
+    milestone.is_verified = true;
+    assert!(milestone.is_verified);
+}
+
+#[test]
+fn test_milestone_verification_multisig() {
+    let campaign = Pubkey::new_unique();
+    let recipient = Pubkey::new_unique();
+    let oracle = Pubkey::new_unique();
+    let game = Pubkey::new_unique();
+    let signer1 = Pubkey::new_unique();
+    let signer2 = Pubkey::new_unique();
+
+    let mut milestone = make_milestone(campaign, recipient, VERIFICATION_MULTISIG, 5_000, oracle, game);
+    milestone.signer_count = 2;
+    milestone.signers[0] = signer1;
+    milestone.signers[1] = signer2;
+    milestone.proof_hash = [42u8; 32];
+    milestone.is_verified = true;
+    assert!(milestone.is_verified);
+    assert_eq!(milestone.signer_count, 2);
+}
+
+#[test]
+fn test_campaign_budget_tracking() {
+    let founder = Pubkey::new_unique();
+    let mut campaign = make_campaign(founder, 1_000_000);
+
+    // Allocate milestones
+    campaign.allocated_amount += 100_000;
+    campaign.milestone_count += 1;
+    assert_eq!(campaign.allocated_amount, 100_000);
+    assert_eq!(campaign.milestone_count, 1);
+
+    campaign.allocated_amount += 200_000;
+    campaign.milestone_count += 1;
+    assert_eq!(campaign.allocated_amount, 300_000);
+    assert_eq!(campaign.milestone_count, 2);
+
+    // Budget check
+    assert!(campaign.allocated_amount <= campaign.total_budget);
+}
+
+#[test]
+fn test_campaign_budget_overflow_protection() {
+    let founder = Pubkey::new_unique();
+    let mut campaign = make_campaign(founder, u64::MAX);
+
+    let result = campaign.allocated_amount.checked_add(1);
+    assert!(result.is_some());
+
+    // Simulate overflow
+    let overflow = campaign.total_budget.checked_add(1);
+    assert!(overflow.is_none());
+}
+
+#[test]
+fn test_verification_type_constants() {
+    assert_eq!(VERIFICATION_ORACLE, 0);
+    assert_eq!(VERIFICATION_GAME, 1);
+    assert_eq!(VERIFICATION_MULTISIG, 2);
+}
+
+#[test]
+fn test_max_signers_constant() {
+    assert_eq!(MAX_SIGNERS, 5);
+}

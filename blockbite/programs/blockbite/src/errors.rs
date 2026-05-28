@@ -4,12 +4,12 @@ use anchor_lang::prelude::*;
 pub enum ErrorCode {
     #[msg("Signer is not authorised to perform this action")]
     Unauthorized,
-    #[msg("Claimable amount is zero or exceeds unlocked tokens")]
-    InsufficientUnlockedTokens,
+    #[msg("No tokens available to withdraw")]
+    NothingToWithdraw,
     #[msg("Stream has been cancelled")]
     StreamCancelled,
     #[msg("Stream is already cancelled")]
-    StreamAlreadyCancelled,
+    AlreadyCancelled,
     #[msg("Stream has not started yet")]
     StreamNotStarted,
     #[msg("Invalid timestamps: end must be after start, cliff must be before end")]
@@ -18,19 +18,25 @@ pub enum ErrorCode {
     InvalidAmount,
     #[msg("Creator and recipient cannot be the same account")]
     InvalidRecipient,
-
-    #[msg("Stream is already cancelled")]
-    AlreadyCancelled,
     #[msg("Stream is fully vested and cannot be cancelled")]
     FullyVested,
-    #[msg("No tokens available to withdraw")]
-    NothingToWithdraw,
     #[msg("Milestone has already been reached")]
     MilestoneAlreadyReached,
-    #[msg("Cliff period has not been reached yet")]
-    CliffNotReached,
-    #[msg("Suspicious activity detected: too many rapid actions")]
-    BotDetected,
-    #[msg("Stream has expired and is no longer active")]
-    StreamExpired,
+    // ── Campaign & Milestone ─────────────────────────────────────────────────
+    #[msg("Campaign not found")]
+    CampaignNotFound,
+    #[msg("Milestone not found")]
+    MilestoneNotFound,
+    #[msg("Milestone has already been verified")]
+    MilestoneAlreadyVerified,
+    #[msg("Proof is invalid or does not match expected hash")]
+    InvalidProof,
+    #[msg("Signer is not an authorized verifier")]
+    UnauthorizedVerifier,
+    #[msg("Insufficient signers for multisig verification")]
+    InsufficientSigners,
+    #[msg("Campaign budget is insufficient for this milestone")]
+    InsufficientBudget,
+    #[msg("Milestone has not been verified yet")]
+    MilestoneNotVerified,
 }
