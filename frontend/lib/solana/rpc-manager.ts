@@ -29,11 +29,12 @@ import { IS_DEVNET } from './config';
 // ── Candidate endpoints ─────────────────────────────────────────────────────
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
+// api.devnet.solana.com is FIRST — the only reliably free devnet RPC in 2026.
+// Ankr now requires API key; dRPC blocks most methods on free tier.
 const DEVNET_ENDPOINTS = [
+  'https://api.devnet.solana.com',
   'https://rpc.ankr.com/solana_devnet',
   'https://solana-devnet.drpc.org',
-  'https://api.devnet.solana.com',
-  'https://rpc.surfpool.run',
 ];
 
 const MAINNET_ENDPOINTS = [
@@ -66,28 +67,35 @@ const LS_KEY = 'bb_rpc_ok';
 function isInfraError(err: Error): boolean {
   const m = err.message.toLowerCase();
   return (
-    m.includes('403')                   ||
-    m.includes('forbidden')             ||
-    m.includes('429')                   ||
-    m.includes('rate limit')            ||
-    m.includes('too many requests')     ||
-    m.includes('timeout')               ||
-    m.includes('timed out')             ||
-    m.includes('failed to fetch')       ||
-    m.includes('networkerror')          ||
-    m.includes('network request')       ||
-    m.includes('econnreset')            ||
-    m.includes('econnrefused')          ||
-    m.includes('service unavailable')   ||
-    m.includes('bad gateway')           ||
-    m.includes('502')                   ||
-    m.includes('503')                   ||
-    m.includes('504')                   ||
-    m.includes('-32005')                ||  // node behind / method not available
-    m.includes('-32601')                ||  // method not found (blocked by provider)
-    m.includes('method not found')      ||
-    m.includes('method not supported')  ||
-    m.includes('getprogramaccounts')       // explicit getProgramAccounts block message
+    m.includes('403')                        ||
+    m.includes('forbidden')                  ||
+    m.includes('unauthorized')               || // Ankr: "You must authenticate with an API key"
+    m.includes('api key')                    || // Ankr/Helius: API key required
+    m.includes('authenticate')               || // Ankr auth error
+    m.includes('429')                        ||
+    m.includes('rate limit')                 ||
+    m.includes('too many requests')          ||
+    m.includes('timeout')                    ||
+    m.includes('timed out')                  ||
+    m.includes('failed to fetch')            ||
+    m.includes('networkerror')               ||
+    m.includes('network request')            ||
+    m.includes('econnreset')                 ||
+    m.includes('econnrefused')               ||
+    m.includes('service unavailable')        ||
+    m.includes('bad gateway')                ||
+    m.includes('502')                        ||
+    m.includes('503')                        ||
+    m.includes('504')                        ||
+    m.includes('freetier')                   || // dRPC: "not available on freetier"
+    m.includes('paid tier')                  || // dRPC: "upgrade to paid tier"
+    m.includes('not available on freetier')  ||
+    m.includes('-32000')                     || // Ankr: -32000 unauthorized
+    m.includes('-32005')                     || // node behind / method not available
+    m.includes('-32601')                     || // method not found (blocked)
+    m.includes('method not found')           ||
+    m.includes('method not supported')       ||
+    m.includes('getprogramaccounts')            // explicit getProgramAccounts block
   );
 }
 

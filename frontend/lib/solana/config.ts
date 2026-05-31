@@ -28,11 +28,14 @@ export const IS_DEVNET = ACTIVE_NETWORK === WalletAdapterNetwork.Devnet;
 // For higher throughput set NEXT_PUBLIC_RPC_URL to a dedicated node, e.g.:
 //   Helius devnet: https://devnet.helius-rpc.com/?api-key=YOUR_KEY  (free tier)
 //   QuickNode:     https://YOUR_SLUG.solana-devnet.quiknode.pro/YOUR_KEY/
+// api.devnet.solana.com is the only reliably free devnet endpoint in 2026.
+// Ankr and dRPC now require API keys / paid tier.
+// For production, set NEXT_PUBLIC_RPC_URL to a dedicated Helius/QuickNode key.
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ??
   (IS_DEVNET
-    ? 'https://rpc.ankr.com/solana_devnet'
-    : 'https://rpc.ankr.com/solana');
+    ? 'https://api.devnet.solana.com'
+    : 'https://api.mainnet-beta.solana.com');
 
 // ── USDC SPL Mint addresses ────────────────────────────────────────
 // Devnet:  BlockBite mock-USDC (mint authority = team wallet). Circle's official
