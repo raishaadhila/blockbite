@@ -9,7 +9,7 @@ import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import TokenSelector from '@/components/TokenSelector';
 import DevnetFaucet from '@/components/DevnetFaucet';
 import {
-  C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
+  C, Label, SInput, SSelect, SSlider, SToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
 } from '../_shared';
@@ -19,7 +19,6 @@ export default function HybridPage() {
   const { setVisible } = useWalletModal();
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
-  const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
   const [token,      setToken]      = useState('');
   const [mintAddress, setMintAddress] = useState('');
   const [decimals,    setDecimals]    = useState(6);
@@ -44,7 +43,7 @@ export default function HybridPage() {
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!token) errs.token = 'Select a token';
-    if (mode === 'manual') {
+    if (true) {
       if (!recipient) {
         errs.recipient = 'Enter recipient wallet address';
       } else {
@@ -127,7 +126,6 @@ export default function HybridPage() {
 
       <Section title="General Details">
         <div style={{ fontSize: 12, color: C.muted }}>Token and stream settings</div>
-        <ManualCsvToggle mode={mode} onChange={setMode} />
         <div>
           <Label required>Token — Any SPL (devnet · mainnet · testnet · wrapped)</Label>
           <TokenSelector
@@ -137,8 +135,7 @@ export default function HybridPage() {
             error={fieldErrors.token}
           />
         </div>
-        {mode === 'manual' && (<>
-          <div>
+        <div>
             <Label required>Recipient</Label>
             <SInput value={recipient} onChange={v => { setRecipient(v); setFieldErrors(p => ({ ...p, recipient: '' })); }} placeholder="Solana wallet address…" />
             <FieldError msg={fieldErrors.recipient} />
@@ -148,15 +145,6 @@ export default function HybridPage() {
             <SInput value={amount} onChange={v => { setAmount(v); setFieldErrors(p => ({ ...p, amount: '' })); }} placeholder="e.g. 2000000" type="number" prefix="◎" />
             <FieldError msg={fieldErrors.amount} />
           </div>
-        </>)}
-        {mode === 'csv' && (
-          <div style={{ padding: '20px', borderRadius: 11, border: `1px dashed ${C.border}`, textAlign: 'center', color: C.muted }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
-            <div style={{ fontWeight: 600, color: '#e8e1f8', marginBottom: 4 }}>Upload CSV</div>
-            <div style={{ fontSize: 11.5 }}>wallet,amount columns · one recipient per row</div>
-            <button style={{ marginTop: 12, padding: '8px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, fontSize: 12, cursor: 'pointer', fontFamily: C.serif }}>Choose File</button>
-          </div>
-        )}
         <SToggle value={cancelable} onChange={setCancelable} label="Allow cancellation?" sub="Creator can cancel and reclaim unvested tokens after a 7-day grace period." />
       </Section>
 
@@ -230,5 +218,7 @@ export default function HybridPage() {
     </StreamPageShell>
   );
 }
+
+
 
 

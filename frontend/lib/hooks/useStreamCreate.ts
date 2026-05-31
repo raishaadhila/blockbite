@@ -86,7 +86,7 @@ export function useStreamCreate() {
         return false;
       }
     } catch {
-      setTxErr(`No ${p.symbol} token account found — fund your wallet with ${p.symbol} first`);
+      setTxErr(`No ${p.symbol} token account found. Use Devnet Tools to fund your wallet, then retry.`);
       setTxStatus('error');
       return false;
     }
