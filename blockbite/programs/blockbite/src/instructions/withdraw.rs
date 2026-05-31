@@ -4,7 +4,6 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 use crate::state::StreamAccount;
 use crate::utils::calculate_unlocked;
 use crate::errors::ErrorCode;
-use crate::constants::{MIN_ACTION_INTERVAL, MAX_VELOCITY_STRIKES};
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
@@ -53,33 +52,13 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
 
     require!(claimable > 0, ErrorCode::NothingToWithdraw);
 
-    let creator = stream.creator;
-    let recipient = stream.recipient;
-    let seed = stream.seed;
-    let bump = stream.bump;
+    // Copy values we need for seeds / CPI before mutable borrow
+    let creator      = stream.creator;
+    let recipient    = stream.recipient;
+    let seed         = stream.seed;
+    let bump         = stream.bump;
     let mint_decimals = ctx.accounts.mint.decimals;
-    let stream_ai = ctx.accounts.stream.to_account_info();
-
-    // === VGPV Anti-Bot (Week 5) ===
-    let stream_mut = &mut ctx.accounts.stream;
-    require!(
-        stream_mut.velocity_strikes < MAX_VELOCITY_STRIKES,
-        ErrorCode::BotDetected
-    );
-
-    if stream_mut.last_action_ts > 0 {
-        let interval = current_time
-            .checked_sub(stream_mut.last_action_ts)
-            .unwrap_or(i64::MAX);
-        if interval < MIN_ACTION_INTERVAL {
-            stream_mut.velocity_strikes = stream_mut.velocity_strikes.saturating_add(1);
-            require!(
-                stream_mut.velocity_strikes < MAX_VELOCITY_STRIKES,
-                ErrorCode::BotDetected
-            );
-        }
-    }
-    stream_mut.last_action_ts = current_time;
+    let stream_ai    = ctx.accounts.stream.to_account_info();
 
     let seeds = &[
         b"stream",
@@ -90,18 +69,18 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
     ];
     let signer_seeds = &[&seeds[..]];
 
-    let escrow = ctx.accounts.escrow_token_account.to_account_info();
-    let mint = ctx.accounts.mint.to_account_info();
+    let escrow      = ctx.accounts.escrow_token_account.to_account_info();
+    let mint        = ctx.accounts.mint.to_account_info();
     let recipient_ta = ctx.accounts.recipient_token_account.to_account_info();
     let token_program = ctx.accounts.token_program.to_account_info();
 
     let cpi_accounts = TransferChecked {
-        from: escrow,
+        from:      escrow,
         mint,
-        to: recipient_ta,
+        to:        recipient_ta,
         authority: stream_ai,
     };
-    let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds);
+    let cpi_ctx = CpiContext::new_with_signer(token_program.key(), cpi_accounts, signer_seeds);
     token::transfer_checked(cpi_ctx, claimable, mint_decimals)?;
 
     ctx.accounts.stream.amount_withdrawn = ctx
